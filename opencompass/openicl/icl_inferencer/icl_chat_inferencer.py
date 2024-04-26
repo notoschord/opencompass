@@ -79,6 +79,7 @@ class LMTemplateParser:
             for item in chat:
                 prompt += last_sep + (item.get('content') or '')
                 last_sep = '\n'
+        prompt = self.meta_template.get('begin', '') + prompt
         return prompt
 
 

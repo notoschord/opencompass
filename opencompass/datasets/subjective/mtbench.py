@@ -179,6 +179,8 @@ class MTBenchDataset(BaseDataset):
                     dialogue = problem['dialogue']
                     capability = problem['capability']
                     others = problem['others']
+                    if not multi_turn:
+                        dialogue = dialogue[:2]
                     others['round'] = int(len(dialogue) / 2)
                     user_contents = [
                         item['content'] for item in dialogue

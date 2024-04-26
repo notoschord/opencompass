@@ -81,6 +81,57 @@ def get_capability_results(
         writer.writerow([model_abbr] + [capability_avg_ratings[column] for column in columns])
 
 
+def get_each_turn_results(
+    judged_answers,
+    references,
+    fout,
+    fout_flag,
+    model_abbr,
+):
+    turn_ratings = defaultdict(int)
+    turn_counts = defaultdict(int)
+    for ans, ref in zip(judged_answers, references):
+        turn_ratings['total'] += ans['score']
+        turn_counts['total'] += 1
+        turn = ref['others']['round']
+        turn_name = 'turn-' + str(turn)
+        turn_ratings[turn_name] += ans['score']
+        turn_counts[turn_name] += 1
+
+    turn_avg_ratings = defaultdict(int)
+
+    for turn, total_score in turn_ratings.items():
+        s = total_score / turn_counts[turn]
+        s = round(s, 3)
+        turn_avg_ratings[turn] = s
+    columns = list(turn_avg_ratings.keys())
+    columns.insert(0, columns.pop(columns.index('total')))
+
+    with open(fout, 'a+', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        if fout_flag == 0:
+            writer.writerow(['model'] + columns)
+        writer.writerow([model_abbr] + [turn_avg_ratings[column] for column in columns])
+
+
+def transpose_summary(file_path):
+    with open(file_path, 'r') as f:
+        csv_reader = csv.reader(f)
+        header = next(csv_reader)
+        table = [line for line in csv_reader]
+
+    new_header = [''] + [line[0] for line in table]
+    new_table = [[h] + line[1:] for h, line in zip(header[1:], table)]
+    new_table = [[h] + [line[i] for line in table] for i, h in enumerate(header[1:], start=1)]
+    t = tabulate(new_table, headers=new_header)
+    with open(file_path, 'w') as f:
+        f.write(','.join(new_header) + '\n')
+        for line in new_table:
+            f.write(','.join(map(str, line)) + '\n')
+    print(t)
+    print(file_path)
+
+
 class MTBenchSummarizer(CompassArenaSummarizer):
     """Do the subjectivity analyze based on evaluation results.
 
@@ -120,13 +171,14 @@ class MTBenchSummarizer(CompassArenaSummarizer):
         # self.judge_type == 'single'
         dataset_cfgs = self.cfg['datasets']
         output_dir, results_folder = get_outdir(self.cfg, time_str)
-        fout_flag = 0
+        fout = osp.join(output_dir, 'judged-by--' + self.judge_abbr + '-capability.csv')
+        fout2 = osp.join(output_dir, 'judged-by--' + self.judge_abbr + '-turn.csv')
+        fout_flag, fout_flag2 = 0, 0
         for eval_model_cfg in self.eval_model_cfgs:
             eval_model_abbr = model_abbr_from_cfg(eval_model_cfg)
             show_model_abbr = model_abbr_from_cfg_used_in_summarizer(eval_model_cfg)
             subdir_path = os.path.join(results_folder, eval_model_abbr + '_judged-by--' + self.judge_abbr)
             if os.path.isdir(subdir_path):
-                fout = osp.join(output_dir, 'judged-by--' + self.judge_abbr + '-capability.csv')
                 overall_judged_answers, overall_references = [], []
                 for dataset in dataset_cfgs:
                     judged_answers, references = get_judgeanswer_and_reference(dataset, subdir_path, self.judge_function)
@@ -134,20 +186,10 @@ class MTBenchSummarizer(CompassArenaSummarizer):
                     overall_references += references
                 get_capability_results(overall_judged_answers, overall_references, fout, fout_flag, show_model_abbr)
                 fout_flag += 1
+                get_each_turn_results(overall_judged_answers, overall_references, fout2, fout_flag2, show_model_abbr)
+                fout_flag2 += 1
             else:
                 print(subdir_path + ' is not exist! please check!')
-        with open(fout, 'r') as f:
-            csv_reader = csv.reader(f)
-            header = next(csv_reader)
-            table = [line for line in csv_reader]
 
-        new_header = [''] + [line[0] for line in table]
-        new_table = [[h] + line[1:] for h, line in zip(header[1:], table)]
-        new_table = [[h] + [line[i] for line in table] for i, h in enumerate(header[1:], start=1)]
-        t = tabulate(new_table, headers=new_header)
-        with open(fout, 'w') as f:
-            f.write(','.join(new_header) + '\n')
-            for line in new_table:
-                f.write(','.join(map(str, line)) + '\n')
-        print(t)
-        print(fout)
+        transpose_summary(fout)
+        transpose_summary(fout2)

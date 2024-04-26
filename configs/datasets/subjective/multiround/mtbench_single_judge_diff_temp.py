@@ -8,7 +8,7 @@ from opencompass.datasets import MTBenchDataset
 subjective_reader_cfg = dict(
     input_columns=['dialogue', 'capability', 'system_prompt', 'prompt_template'],
     output_column='judge',
-    )
+)
 
 subjective_all_sets = [
     "mtbench_0.0","mtbench_0.1","mtbench_0.7"
@@ -21,13 +21,13 @@ for _name in subjective_all_sets:
     temperature = float(_name.split('_')[1])
     do_sample = False if temperature == 0.0 else True
     subjective_infer_cfg = dict(
-            prompt_template=dict(
-                type=PromptTemplate,
-                template="""{dialogue}""",
-            ),
-            retriever=dict(type=ZeroRetriever),
-            inferencer=dict(type=ChatInferencer, max_seq_len=4096, max_out_len=512, temperature=temperature, do_sample=do_sample,infer_mode='every'),
-        )
+        prompt_template=dict(
+            type=PromptTemplate,
+            template="""{dialogue}""",
+        ),
+        retriever=dict(type=ZeroRetriever),
+        inferencer=dict(type=ChatInferencer, max_seq_len=4096, max_out_len=2048, temperature=temperature, do_sample=do_sample,infer_mode='every'),
+    )
 
     subjective_eval_cfg = dict(
         evaluator=dict(
@@ -35,18 +35,18 @@ for _name in subjective_all_sets:
             prompt_template=dict(
                 type=PromptTemplate,
                 template=dict(
-                begin=[
-                    dict(
-                        role='SYSTEM',
-                        fallback_role='HUMAN',
-                        prompt="{system_prompt}")
-                ],
+                    begin=[
+                        dict(
+                            role='SYSTEM',
+                            fallback_role='HUMAN',
+                            prompt="{system_prompt}")
+                    ],
                     round=[
-                    dict(
-                        role='HUMAN',
-                        prompt = "{prompt_template}"
-                    ),
-                ]),
+                        dict(
+                            role='HUMAN',
+                            prompt = "{prompt_template}"
+                        ),
+                    ]),
             ),
         ),
         pred_role="BOT",
@@ -54,10 +54,23 @@ for _name in subjective_all_sets:
 
     subjective_datasets.append(
         dict(
-            abbr=f"{_name}",
+            abbr=f"{_name}_first_turn",
             type=MTBenchDataset,
             path=data_path,
             name=_name,
+            multi_turn=False,
+            reader_cfg=subjective_reader_cfg,
+            infer_cfg=subjective_infer_cfg,
+            eval_cfg=subjective_eval_cfg
+        ))
+
+    subjective_datasets.append(
+        dict(
+            abbr=f"{_name}_multi_turn",
+            type=MTBenchDataset,
+            path=data_path,
+            name=_name,
+            multi_turn=True,
             reader_cfg=subjective_reader_cfg,
             infer_cfg=subjective_infer_cfg,
             eval_cfg=subjective_eval_cfg

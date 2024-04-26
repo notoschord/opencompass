@@ -24,7 +24,7 @@ for _name in subjective_all_sets:
                 template="""{dialogue}""",
             ),
             retriever=dict(type=ZeroRetriever),
-            inferencer=dict(type=ChatInferencer, max_seq_len=4096, max_out_len=512, infer_mode='every'),
+            inferencer=dict(type=ChatInferencer, max_seq_len=4096, max_out_len=2048, infer_mode='every'),
         )
 
     subjective_eval_cfg = dict(
@@ -53,11 +53,25 @@ for _name in subjective_all_sets:
 
     subjective_datasets.append(
         dict(
-            abbr=f"{_name}",
+            abbr=f"{_name}_first_turn",
             type=MTBenchDataset,
             path=data_path,
             name=_name,
             judge_type='pair',
+            multi_turn=False,
+            reader_cfg=subjective_reader_cfg,
+            infer_cfg=subjective_infer_cfg,
+            eval_cfg=subjective_eval_cfg
+        ))
+
+    subjective_datasets.append(
+        dict(
+            abbr=f"{_name}_multi_turn",
+            type=MTBenchDataset,
+            path=data_path,
+            name=_name,
+            judge_type='pair',
+            multi_turn=True,
             reader_cfg=subjective_reader_cfg,
             infer_cfg=subjective_infer_cfg,
             eval_cfg=subjective_eval_cfg
